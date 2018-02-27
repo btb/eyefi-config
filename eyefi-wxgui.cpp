@@ -83,16 +83,36 @@ bool EyeFiGui::OnInit()
 	toolBar->Realize();
 	
 	frame->CreateStatusBar();
-	frame->SetStatusText(_T("Card not found"));
+//	frame->SetStatusText(_T("Card not found"));
 	
 	treeList = new wxTreeListCtrl(frame, wxID_ANY);
 	treeList->AppendColumn("Item");
 	treeList->AppendColumn("Value");
 
-	
-	
 	frame->Show(true);
 	SetTopWindow(frame);
+
+	char *mountPoint = locate_eyefi_mount();
+	
+	if (mountPoint) {
+		wxTreeListItem cardBranch = treeList->AppendItem(treeList->GetRootItem(), mountPoint);
+		wxTreeListItem networksBranch = treeList->AppendItem(cardBranch, _("Configured Wireles Networks"));
+		struct configured_net_list *configured = fetch_configured_nets();
+
+		if (configured->nr == 0) {
+			printf("No wireless networks configured on card\n");
+			return false;
+		}
+		printf("configured wireless networks:\n");
+		for (int i = 0; i < configured->nr; i++) {
+			struct configured_net *net = &configured->nets[i];
+			wxTreeListItem netBranch = treeList->AppendItem(networksBranch, "ESSID");
+			treeList->SetItemText(netBranch, 1, net->essid);
+		}
+
+	
+	}
+
 	return true;
 }
 
