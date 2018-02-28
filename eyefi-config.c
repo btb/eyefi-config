@@ -624,6 +624,11 @@ u8 __get_endless_percentage(void)
 	return result;
 }
 
+int fetch_endless(void)
+{
+	return __get_endless_percentage();
+}
+
 int set_endless_percentage(int __percentage)
 {
 	u8 raw = __get_endless_percentage();
@@ -1002,6 +1007,17 @@ void testit0(void)
 		dumpbuf(eyefi_buf, 64);
 		printf("buffer dump done\n");
 	}
+}
+
+struct mac_address *fetch_mac_address(void)
+{
+	struct mac_address *mac;
+
+	debug_printf(2, "%s()\n", __func__);
+	card_info_cmd(MAC_ADDRESS);
+	mac = eyefi_buf;
+	assert(mac->length == MAC_BYTES);
+	return mac;
 }
 
 struct card_info_rsp_key *fetch_card_key(void)

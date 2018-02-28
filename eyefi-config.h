@@ -364,6 +364,7 @@ u32 fetch_log_length(void);
 int card_info_cmd(enum card_info_subcommand cmd);
 int card_config_set(enum card_info_subcommand cmd, struct var_byte_response *args);
 void *eyefi_response(void);
+struct mac_address *fetch_mac_address(void);
 struct card_info_rsp_key *fetch_card_key(void);
 struct card_info_rsp_key *fetch_card_upload_key(void);
 int wlan_enabled(void);
@@ -384,7 +385,7 @@ void init_card(void);
 void add_network(char *essid, char *ascii_password);
 void remove_network(char *essid);
 struct card_firmware_info *fetch_card_firmware_info(void);
-
+int fetch_endless(void);
 int set_endless_percentage(int __percentage);
 int endless_enable(int enable);
 void print_endless(void);
