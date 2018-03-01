@@ -15,7 +15,7 @@
 #endif
 #include <wx/aboutdlg.h>
 #include <wx/artprov.h>
-#include <wx/treelist.h>
+#include <wx/propgrid/propgrid.h>
 
 
 extern "C" {
@@ -53,7 +53,6 @@ class EyeFiGui : public wxApp
 
 protected:
 	wxToolBar *toolBar;
-	wxTreeListCtrl *treeList;
 	
 private:
 	void OnAbout(wxCommandEvent& evt);
@@ -98,85 +97,82 @@ bool EyeFiGui::OnInit()
 	frame->CreateStatusBar();
 //	frame->SetStatusText(_T("Card not found"));
 	
-	treeList = new wxTreeListCtrl(frame, wxID_ANY);
-	treeList->AppendColumn("Item");
-	treeList->AppendColumn("Value", 240);
-
-	frame->Show(true);
-	SetTopWindow(frame);
+	// Construct wxPropertyGrid control
+	wxPropertyGrid* pg = new wxPropertyGrid(
+											frame, // parent
+											wxID_ANY, // id
+											wxDefaultPosition, // position
+											wxDefaultSize, // size
+											// Here are just some of the supported window styles
+//											wxPG_AUTO_SORT | // Automatic sorting after items added
+											wxPG_SPLITTER_AUTO_CENTER | // Automatically center splitter until user manually adjusts it
+											// Default style
+											wxPG_DEFAULT_STYLE );
+	// Window style flags are at premium, so some less often needed ones are
+	// available as extra window styles (wxPG_EX_xxx) which must be set using
+	// SetExtraStyle member function. wxPG_EX_HELP_AS_TOOLTIPS, for instance,
+	// allows displaying help strings as tool tips.
+	pg->SetExtraStyle( wxPG_EX_HELP_AS_TOOLTIPS );
 
 	char *mountPoint = locate_eyefi_mount();
 	
 	if (mountPoint) {
 		char tempStr[33];
 
-		wxTreeListItem cardBranch = treeList->AppendItem(treeList->GetRootItem(), _("Eye-Fi Card Mounted at"));
-		treeList->SetItemText(cardBranch, 1, mountPoint);
+		pg->Append( new wxStringProperty(_("Eye-Fi Card Mounted at"), wxPG_LABEL, mountPoint) );
 
-		wxTreeListItem leaf = treeList->AppendItem(cardBranch, _("Firmware Version"));
 		struct card_firmware_info *info = fetch_card_firmware_info();
 		pstrcpy(tempStr, &info->info);
-		treeList->SetItemText(leaf, 1, tempStr);
-		
-		leaf = treeList->AppendItem(cardBranch, _("MAC Address"));
+		pg->Append( new wxStringProperty(_("Firmware Version"), wxPG_LABEL, tempStr) );
+
 		struct mac_address *mac = fetch_mac_address();
 		snprintf(tempStr, sizeof(tempStr), "%02x:%02x:%02x:%02x:%02x:%02x",
 				 mac->mac[0], mac->mac[1], mac->mac[2], mac->mac[3], mac->mac[4], mac->mac[5]);
-		treeList->SetItemText(leaf, 1, tempStr);
-		
-		leaf = treeList->AppendItem(cardBranch, _("Upload Key"));
+		pg->Append( new wxStringProperty(_("MAC Address"), wxPG_LABEL, tempStr) );
+
 		struct card_info_rsp_key *key = fetch_card_upload_key();
 		pstrcpy(tempStr, &key->key);
-		treeList->SetItemText(leaf, 1, tempStr);
-		
-		leaf = treeList->AppendItem(cardBranch, _("Transfer Mode"));
+		pg->Append( new wxStringProperty(_("Upload Key"), wxPG_LABEL, tempStr) );
+
 		enum transfer_mode mode = fetch_transfer_mode();
-		treeList->SetItemText(leaf, 1, transfer_mode_names[mode]);
-		
-		leaf = treeList->AppendItem(cardBranch, _("WiFi Radio"));
-		treeList->SetItemText(leaf, 1, wlan_enabled() ? "enabled" : "disabled");
-		
-		wxTreeListItem endlessBranch = treeList->AppendItem(cardBranch, _("Endless Storage"));
+		pg->Append( new wxStringProperty(_("Transfer Mode"), wxPG_LABEL, transfer_mode_names[mode]) );
+
+		pg->Append( new wxStringProperty(_("WiFi Radio"), wxPG_LABEL, wlan_enabled() ? "enabled" : "disabled") );
+
 		int endless = fetch_endless();
-		treeList->SetItemText(endlessBranch, 1, endless >> 7 ? "enabled" : "disabled");
+		pg->Append( new wxStringProperty(_("Endless Storage"), wxPG_LABEL, endless >> 7 ? "enabled" : "disabled") );
 		if (endless >> 7) {
-			leaf = treeList->AppendItem(endlessBranch, _("Percentage"));
 			sprintf(tempStr, "%d%%", endless % 128);
-			treeList->SetItemText(leaf, 1, tempStr);
+			pg->Append( new wxStringProperty(_("Percentage"), wxPG_LABEL, tempStr) );
 		}
-		
-		leaf = treeList->AppendItem(cardBranch, _("Direct Mode SSID"));
+
 		card_info_cmd(DIRECT_MODE_SSID);
 		struct pascal_string *pStr = (struct pascal_string *)eyefi_response();
 		pstrcpy(tempStr, pStr);
-		treeList->SetItemText(leaf, 1, tempStr);
+		pg->Append( new wxStringProperty(_("Direct Mode SSID"), wxPG_LABEL, tempStr) );
 
-		leaf = treeList->AppendItem(cardBranch, _("Direct Mode Password"));
 		card_info_cmd(DIRECT_MODE_PASS);
 		pStr = (struct pascal_string *)eyefi_response();
 		pstrcpy(tempStr, pStr);
-		treeList->SetItemText(leaf, 1, tempStr);
-		
-		wxTreeListItem networksBranch = treeList->AppendItem(cardBranch, _("Configured Wireless Networks"));
+		pg->Append( new wxStringProperty(_("Direct Mode Password"), wxPG_LABEL, tempStr) );
+
 		struct configured_net_list *configured = fetch_configured_nets();
 		sprintf(tempStr, "%d", configured->nr);
-		treeList->SetItemText(networksBranch, 1, tempStr);
+		pg->Append( new wxStringProperty(_("Configured Wireless Networks"), wxPG_LABEL, tempStr) );
 		for (int i = 0; i < configured->nr; i++) {
 			struct configured_net *net = &configured->nets[i];
-			wxTreeListItem netLeaf = treeList->AppendItem(networksBranch, "ESSID");
-			treeList->SetItemText(netLeaf, 1, net->essid);
+			sprintf(tempStr, "ESSID %d", i);
+			pg->Append( new wxStringProperty(_(tempStr), wxPG_LABEL, net->essid) );
 		}
 
-		leaf = treeList->AppendItem(cardBranch, _("Card Key"));
 		key = fetch_card_key();
 		pstrcpy(tempStr, &key->key);
-		treeList->SetItemText(leaf, 1, tempStr);
-
-		treeList->Expand(cardBranch);
-		treeList->Expand(endlessBranch);
-		treeList->Expand(networksBranch);
+		pg->Append( new wxStringProperty(_("Card Key"), wxPG_LABEL, tempStr) );
 
 	}
+
+	frame->Show(true);
+	SetTopWindow(frame);
 
 	return true;
 }

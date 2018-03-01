@@ -26,7 +26,7 @@ eyefi-config: $(OBJS) $(cli_OBJS)
 	$(CC) $(CFLAGS) $(OBJS) $(cli_OBJS) -o $@
 
 eyefi-config-gui: $(OBJS) $(gui_OBJS)
-	$(CXX) $(CFLAGS) `wx-config --libs` $(OBJS) $(gui_OBJS) -o $@
+	$(CXX) $(CFLAGS) `wx-config --libs std,propgrid` $(OBJS) $(gui_OBJS) -o $@
 
 clean:
 	rm -f eyefi-config eyefi-config-gui core  $(OBJS) $(cli_OBJS) $(gui_OBJS) cscope*
